@@ -1,0 +1,19 @@
+# Neo4j data (too large)
+neo4j_data/
+neo4j_logs/
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# Large data files
+*.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
