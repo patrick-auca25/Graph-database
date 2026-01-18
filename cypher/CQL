@@ -1,0 +1,145 @@
+===========================================
+ US ROAD NETWORK - NEO4J CYPHER QUERIES
+
+============================================
+
+============================================
+ DATA LOADING QUERIES
+============================================
+
+// Clear existing data
+MATCH (n) DETACH DELETE n;
+
+
+// Create Intersections (Nodes):
+
+LOAD CSV WITH HEADERS FROM 'file:///intersections.csv' AS row
+CREATE (:Intersection {
+    id: toInteger(row.id),
+    x: toInteger(row.x),
+    y: toInteger(row.y)
+});
+
+== Create Index for faster queries
+CREATE INDEX intersection_id FOR (i:Intersection) ON (i.id);
+
+=== Create Roads (Relationships)
+LOAD CSV WITH HEADERS FROM 'file:///roads.csv' AS row
+MATCH (source:Intersection {id: toInteger(row.source)})
+MATCH (target:Intersection {id: toInteger(row.target)})
+CREATE (source)-[:ROAD {distance: toFloat(row.distance)}]->(target);
+
+ ============================================
+ TASK 1: Total Intersections and Roads
+ ============================================
+
+=====Count total intersections====
+MATCH (i:Intersection) 
+RETURN count(i) AS total_intersections;
+
+====== Count total roads===
+MATCH ()-[r:ROAD]->() 
+RETURN count(r) AS total_roads;
+
+
+ ============================================
+ TASK 2: Shortest Path Between Two Intersections
+ ============================================
+
+
+
+===Method : Weighted (shortest distance) - Requires GDS=======
+
+==Step 1: Create Graph Projection==
+CALL gds.graph.drop('road-network', false);
+
+CALL gds.graph.project(
+    'road-network',
+    'Intersection',
+    {
+        ROAD: {
+            type: 'ROAD',
+            orientation: 'UNDIRECTED',
+            properties: 'distance'
+        }
+    }
+);
+
+==Step 2: Run Dijkstra's Algorithm==
+MATCH (start:Intersection {id: 0}), (end:Intersection {id: 100})
+CALL gds.shortestPath.dijkstra.stream('road-network', {
+    sourceNode: start,
+    targetNode: end,
+    relationshipWeightProperty: 'distance'
+})
+YIELD totalCost, nodeIds
+RETURN
+    [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS path,
+    totalCost AS total_distance,
+    size(nodeIds) - 1 AS number_of_roads;
+
+ ============================================
+TASK 3: Intersections with Degree > 3
+ ============================================
+
+===Find all intersections with more than 3 connections===
+MATCH (i:Intersection)
+WITH i, COUNT { (i)-[:ROAD]-() } AS degree
+WHERE degree > 3
+RETURN i.id AS intersection_id, degree
+ORDER BY degree DESC;
+
+=== Count how many intersections have degree > 3===
+MATCH (i:Intersection)
+WITH i, COUNT { (i)-[:ROAD]-() } AS degree
+WHERE degree > 3
+RETURN count(*) AS intersections_with_degree_greater_than_3;
+
+ ============================================
+ TASK 4: Betweenness Centrality
+ ============================================
+
+
+CALL gds.betweenness.stream('road-network')
+YIELD nodeId, score
+RETURN gds.util.asNode(nodeId).id AS intersection_id, score
+ORDER BY score DESC
+LIMIT 10;
+
+
+
+============================================
+ TASK 5-9: Dashboard Queries
+============================================
+
+// Task 5: Key Metrics (same as Task 1)
+MATCH (i:Intersection) RETURN count(i) AS total_intersections;
+MATCH ()-[r:ROAD]->() RETURN count(r) AS total_roads;
+
+// Task 6 & 9: Degree Distribution
+MATCH (i:Intersection)
+WITH i, COUNT { (i)-[:ROAD]-() } AS degree
+RETURN degree, count(*) AS count
+ORDER BY degree;
+
+// Task 7: Top 10 Most Connected Intersections
+MATCH (i:Intersection)
+WITH i, COUNT { (i)-[:ROAD]-() } AS degree
+RETURN i.id AS intersection_id, degree
+ORDER BY degree DESC
+LIMIT 10;
+
+// Task 8: Intersection Categories by Degree
+MATCH (i:Intersection)
+WITH i, COUNT { (i)-[:ROAD]-() } AS degree
+RETURN 
+    CASE 
+        WHEN degree = 1 THEN 'Dead End (1 road)'
+        WHEN degree = 2 THEN 'Pass Through (2 roads)'
+        WHEN degree = 3 THEN 'T-Junction (3 roads)'
+        WHEN degree = 4 THEN 'Crossroad (4 roads)'
+        ELSE 'Major Hub (5+ roads)'
+    END AS category,
+    count(*) AS count
+ORDER BY count DESC;
+

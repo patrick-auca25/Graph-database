@@ -72,7 +72,7 @@ ORDER BY count DESC
 categories_df = pd.DataFrame(run_query(categories_query))
 
 # ============================================
-# CREATE IMPROVED DASHBOARD
+#  DASHBOARD
 # ============================================
 print("\nCreating dashboard...")
 
@@ -138,7 +138,7 @@ fig.add_trace(
 )
 
 # ============================================
-# CHART 3: Intersection Types (Horizontal Bar - Better than Pie)
+# CHART 3: Intersection Types (Horizontal Bar)
 # ============================================
 category_colors = ['#3498DB', '#2ECC71', '#9B59B6', '#E74C3C', '#F39C12']
 categories_sorted = categories_df.sort_values('count', ascending=True)
@@ -199,7 +199,7 @@ fig.add_trace(
 # ============================================
 fig.update_layout(
     title={
-        'text': '<b>US Road Network Analysis Dashboard</b><br><span style="font-size:16px;color:#7F8C8D;">87,575 Intersections | 121,961 Roads | Continental United States</span>',
+        'text': '<b>US Road Network Analysis Dashboard</b><br>',
         'x': 0.5,
         'xanchor': 'center',
         'font': {'size': 26, 'color': '#2C3E50'}
@@ -233,9 +233,8 @@ fig.update_yaxes(title_text="", row=2, col=1, tickfont=dict(size=11))
 # ============================================
 output_path = os.path.join(REPORTS_DIR, "dashboard.html")
 fig.write_html(output_path)
-print(f"\n✅ Dashboard saved to: {output_path}")
+print(f"\n  Dashboard saved to: {output_path}")
 
 fig.show()
 
 driver.close()
-print("✅ Done!")
